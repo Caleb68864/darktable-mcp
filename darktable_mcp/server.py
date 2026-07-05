@@ -70,6 +70,64 @@ def adjust(control: str, direction: str, amount: int = 3) -> dict[str, Any]:
 
 
 @mcp.tool()
+def list_looks() -> dict[str, Any]:
+    """List the one-word semantic looks available to `apply_look` (warmer, moody, cinematic, ...)."""
+    return {"ok": True, "result": {"looks": sorted(controls.LOOKS)}}
+
+
+@mcp.tool()
+def apply_look(look: str) -> dict[str, Any]:
+    """Apply a one-word semantic look to the current photo by nudging several controls together.
+
+    look: one of warmer, cooler, brighter, darker, punchy, vivid, muted, faded, moody, golden,
+    cinematic, soft. Use this for an overall vibe, then fine-tune with `adjust`.
+    """
+    seq = controls.LOOKS.get(look.lower())
+    if seq is None:
+        return {
+            "ok": False,
+            "error": "unknown_look",
+            "message": f"'{look}' is not a known look. Valid: {sorted(controls.LOOKS)}",
+        }
+
+    def run() -> dict[str, Any]:
+        steps = [bridge.call("adjust", c, d, a) for c, d, a in seq]
+        return {"look": look.lower(), "steps": steps}
+
+    return _guard(run)
+
+
+@mcp.tool()
+def build_starter_styles(image_query: str) -> dict[str, Any]:
+    """Create the "MCP - ..." starter style pack by building each look on a photo and saving it.
+
+    Pass a filename substring for any photo to build on (its edits are reset afterward, so the
+    photo is left untouched). Adds reusable styles Claude can later `apply_style`.
+    """
+
+    def run() -> dict[str, Any]:
+        opened = bridge.call("open_in_darkroom", image_query)
+        if isinstance(opened, dict) and opened.get("error"):
+            return opened
+        created, skipped = [], []
+        existing = {s["name"] for s in bridge.call("list_styles").get("styles", [])}
+        for name, seq in controls.STARTER_STYLES.items():
+            style_name = f"MCP - {name}"
+            if style_name in existing:
+                skipped.append(style_name)
+                continue
+            bridge.call("reset_current")
+            for c, d, a in seq:
+                bridge.call("adjust", c, d, a)
+            bridge.call("create_style_from_current", style_name, f"darktable-mcp starter: {name}")
+            created.append(style_name)
+        bridge.call("reset_current")
+        return {"created": created, "skipped": skipped}
+
+    return _guard(run)
+
+
+@mcp.tool()
 def list_styles() -> dict[str, Any]:
     """List the saved styles (looks) available in darktable."""
     return _guard(lambda: bridge.call("list_styles"))

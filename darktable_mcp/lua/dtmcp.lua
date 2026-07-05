@@ -47,14 +47,19 @@ dtmcp._encode = encode
 -- ---- control registry (validated live) ----------------------------------
 
 local CONTROLS = {
-  brightness  = "iop/exposure/exposure",
-  exposure    = "iop/exposure/exposure",
-  warmth      = "iop/temperature/temperature",
-  temperature = "iop/temperature/temperature",
-  tint        = "iop/temperature/tint",
-  contrast    = "iop/colorbalancergb/contrast",
-  saturation  = "iop/colorbalancergb/global saturation",
-  vibrance    = "iop/velvia/strength",
+  brightness      = "iop/exposure/exposure",
+  exposure        = "iop/exposure/exposure",
+  warmth          = "iop/temperature/temperature",
+  temperature     = "iop/temperature/temperature",
+  tint            = "iop/temperature/tint",
+  contrast        = "iop/colorbalancergb/contrast",
+  saturation      = "iop/colorbalancergb/global saturation",
+  vibrance        = "iop/velvia/strength",
+  shadows         = "iop/shadhi/shadows",
+  highlights      = "iop/shadhi/highlights",
+  filmic_contrast = "iop/filmicrgb/contrast",
+  whites          = "iop/filmicrgb/white relative exposure",
+  blacks          = "iop/filmicrgb/black relative exposure",
 }
 
 -- ---- internal helpers ----------------------------------------------------

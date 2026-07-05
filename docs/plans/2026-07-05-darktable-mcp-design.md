@@ -43,11 +43,30 @@ darkroom re-renders → JSON reply → Claude.
 | `list_images(filter, limit)` | find photos in the library |
 | `open_in_darkroom(query)` | load a photo into the darkroom (so edits are visible) |
 | `get_current_image` | the photo currently being edited |
-| `adjust(control, direction, amount)` | **live nudge** of exposure/warmth/tint/contrast/saturation/vibrance |
+| `adjust(control, direction, amount)` | **live nudge** of a single control |
+| `apply_look(look)` | one-word semantic move nudging several controls together (moody, golden, ...) |
+| `list_looks` | enumerate the semantic looks |
 | `list_styles` / `apply_style(name)` | apply a saved look live |
 | `create_style_from_current(name)` | save the current look as a reusable style |
+| `build_starter_styles(image_query)` | build the "MCP - ..." starter style pack from the live pipeline |
 | `reset_current` | discard edits and start over |
 | `darktable_guide` | intent→control knowledge Claude reads to translate words to modules |
+
+### Controls (all validated live)
+
+brightness/exposure, warmth/temperature, tint, contrast, filmic_contrast, saturation, vibrance,
+shadows, highlights, whites, blacks. Paths are in `controls.py` (Python) and `lua/dtmcp.lua`
+(Lua) — a unit test asserts the two registries stay in sync.
+
+> Note: `iop/colorbalancergb/shadows luminance` / `highlights luminance` were probed and **hung
+> darktable** — avoided. Shadows/highlights are driven via the `shadhi` module instead.
+
+### Semantic looks & starter styles
+
+`apply_look` maps a word (moody, cinematic, golden, faded, vivid, punchy, soft, ...) to a sequence
+of nudges — the "warmer/cooler" convenience layer. `build_starter_styles` runs curated sequences on
+a photo and saves them as reusable `MCP - <name>` styles, sidestepping darktable's binary style
+format by building looks through the live pipeline.
 
 ## Knowledge layer
 
