@@ -30,3 +30,17 @@ def test_every_starter_style_uses_known_controls():
 def test_python_and_lua_control_registries_match():
     """Guards against the Python/Lua drift bug: both registries must expose the same names."""
     assert set(controls.CONTROLS) == _lua_control_keys()
+
+
+def _lua_table_keys(table_name: str) -> set[str]:
+    src = (Path(controls.__file__).parent / "lua" / "dtmcp.lua").read_text(encoding="utf-8")
+    block = src.split(f"local {table_name} = {{", 1)[1].split("}", 1)[0]
+    return set(re.findall(r"(\w+)\s*=", block))
+
+
+def test_color_labels_match_lua():
+    assert controls.COLOR_LABELS == _lua_table_keys("COLOR_LABELS")
+
+
+def test_metadata_fields_match_lua():
+    assert controls.METADATA_FIELDS == _lua_table_keys("META_FIELDS")

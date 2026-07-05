@@ -50,7 +50,18 @@ Or configure Claude Desktop / Claude Code with the `darktable-mcp` command as an
 | `list_styles` / `apply_style` | Apply a saved look, live |
 | `create_style_from_current` | Save the current look as a reusable style |
 | `reset_current` | Discard edits and start over |
+| `set_rating` / `get_labels` | Star rating (-1 reject … 5) and color labels |
+| `set_color_label` | Red/yellow/green/blue/purple flags (single or whole selection) |
+| `add_tag` / `remove_tag` / `get_tags` | Keyword tags (created on demand) |
+| `set_metadata` / `get_metadata` | Title/creator/etc. + read-only EXIF (camera, lens, ISO) |
+| `list_collection` / `get_selection` | Browse the active filter / the selected photos |
+| `duplicate_image` | Virtual copy with independent edits |
+| `import_images` | Import a file or folder into the library |
+| `export_image` | Write the edited photo to a real JPEG/PNG/TIFF |
 | `darktable_guide` | Intent→control guidance Claude uses to translate your words |
+
+Most organizing tools take `all_selected=true` to act on the whole lighttable selection instead of
+just the current photo.
 
 ## The live loop
 

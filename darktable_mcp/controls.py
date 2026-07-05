@@ -29,6 +29,11 @@ CONTROLS: dict[str, str] = {
 # Directions accepted by `adjust`.
 DIRECTIONS = {"up", "down"}
 
+# Organizing metadata vocabularies (validated live).
+COLOR_LABELS = {"red", "yellow", "green", "blue", "purple"}
+METADATA_FIELDS = {"title", "creator", "publisher", "rights", "description"}
+EXPORT_FORMATS = {"jpeg", "jpg", "png", "tiff"}
+
 # Semantic "looks": one word -> a sequence of (control, direction, amount) nudges.
 # This is the convenience layer so the user can say "moodier" and get a coherent multi-control move.
 LOOKS: dict[str, list[tuple[str, str, int]]] = {
@@ -96,6 +101,18 @@ fine-tuning.
 - `get_preview` renders the current edit to an image you can actually look at. Use it to close the
   loop: make a change, call `get_preview`, judge it, then decide the next nudge — rather than
   editing blind. Especially call it before telling the user something looks a certain way.
+
+## Organizing photos (not editing)
+Beyond editing, you can manage the library. These act on the current darkroom photo by default;
+pass `all_selected=true` to act on the whole lighttable selection (see `get_selection`).
+- `set_rating(-1..5)` — reject (-1) or 0-5 stars. `get_labels` reads rating + color labels.
+- `set_color_label(color, on)` — red/yellow/green/blue/purple flags for sorting.
+- `add_tag(tag)` / `remove_tag(tag)` / `get_tags` — keyword tags (created on demand).
+- `set_metadata(field, value)` / `get_metadata` — title/creator/publisher/rights/description,
+  plus read-only EXIF (camera, lens, ISO, aperture, exposure).
+- `list_collection` — the photos in the active lighttable filter. `duplicate_image` — a virtual
+  copy with independent edits. `import_images(path)` — add files/folders. `export_image(path,
+  format, max_size)` — write the edited photo to a real JPEG/PNG/TIFF.
 
 ## Workflow tips
 - Call `open_in_darkroom` first so the user sees the photo. Confirm with `get_current_image`.

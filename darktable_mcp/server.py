@@ -176,6 +176,106 @@ def reset_current() -> dict[str, Any]:
     return _guard(lambda: bridge.call("reset_current"))
 
 
+# -- organizing: ratings, labels, tags, metadata ---------------------------
+
+@mcp.tool()
+def set_rating(rating: int, all_selected: bool = False) -> dict[str, Any]:
+    """Set the star rating (-1 reject, 0 none, 1-5 stars) on the current photo.
+
+    all_selected: if true, apply to every photo currently selected in the lighttable instead.
+    """
+    if not -1 <= rating <= 5:
+        return {"ok": False, "error": "bad_rating", "message": "rating must be -1 to 5"}
+    return _guard(lambda: bridge.call("set_rating", rating, all_selected))
+
+
+@mcp.tool()
+def set_color_label(color: str, on: bool = True, all_selected: bool = False) -> dict[str, Any]:
+    """Toggle a color label (red/yellow/green/blue/purple) on the current photo (or selection)."""
+    if color.lower() not in controls.COLOR_LABELS:
+        return {"ok": False, "error": "bad_color", "message": f"color must be one of {sorted(controls.COLOR_LABELS)}"}
+    return _guard(lambda: bridge.call("set_color_label", color.lower(), on, all_selected))
+
+
+@mcp.tool()
+def get_labels() -> dict[str, Any]:
+    """Get the current photo's star rating and color labels."""
+    return _guard(lambda: bridge.call("get_labels"))
+
+
+@mcp.tool()
+def add_tag(tag: str, all_selected: bool = False) -> dict[str, Any]:
+    """Attach a tag (keyword) to the current photo, creating the tag if needed.
+
+    all_selected: if true, tag every photo currently selected in the lighttable instead.
+    """
+    return _guard(lambda: bridge.call("add_tag", tag, all_selected))
+
+
+@mcp.tool()
+def remove_tag(tag: str, all_selected: bool = False) -> dict[str, Any]:
+    """Detach a tag from the current photo (or the whole lighttable selection)."""
+    return _guard(lambda: bridge.call("remove_tag", tag, all_selected))
+
+
+@mcp.tool()
+def get_tags() -> dict[str, Any]:
+    """List the tags attached to the current photo."""
+    return _guard(lambda: bridge.call("get_tags"))
+
+
+@mcp.tool()
+def set_metadata(field: str, value: str) -> dict[str, Any]:
+    """Set a metadata field (title/creator/publisher/rights/description) on the current photo."""
+    if field.lower() not in controls.METADATA_FIELDS:
+        return {"ok": False, "error": "bad_field", "message": f"field must be one of {sorted(controls.METADATA_FIELDS)}"}
+    return _guard(lambda: bridge.call("set_metadata", field.lower(), value))
+
+
+@mcp.tool()
+def get_metadata() -> dict[str, Any]:
+    """Get the current photo's metadata (title/creator/...) and key EXIF (camera, lens, ISO, ...)."""
+    return _guard(lambda: bridge.call("get_metadata"))
+
+
+# -- browsing & library ----------------------------------------------------
+
+@mcp.tool()
+def list_collection(limit: int = 100) -> dict[str, Any]:
+    """List the photos in darktable's current collection (the active lighttable filter)."""
+    return _guard(lambda: bridge.call("list_collection", limit))
+
+
+@mcp.tool()
+def get_selection() -> dict[str, Any]:
+    """List the photos currently selected in the lighttable."""
+    return _guard(lambda: bridge.call("get_selection"))
+
+
+@mcp.tool()
+def duplicate_image() -> dict[str, Any]:
+    """Create a virtual copy (duplicate) of the current photo with its own independent edits."""
+    return _guard(lambda: bridge.call("duplicate_image"))
+
+
+@mcp.tool()
+def import_images(path: str) -> dict[str, Any]:
+    """Import a photo file or a whole folder into the darktable library."""
+    return _guard(lambda: bridge.call("import_images", path))
+
+
+@mcp.tool()
+def export_image(path: str, format: str = "jpeg", max_size: int = 0) -> dict[str, Any]:
+    """Export the current photo (with its edits) to a real file.
+
+    format: jpeg/png/tiff. max_size: cap the long edge in pixels (0 = full resolution).
+    """
+    if format.lower() not in controls.EXPORT_FORMATS:
+        return {"ok": False, "error": "bad_format", "message": f"format must be one of {sorted(controls.EXPORT_FORMATS)}"}
+    size = max_size if max_size > 0 else None
+    return _guard(lambda: bridge.call("export_image", path, format.lower(), size))
+
+
 @mcp.tool()
 def darktable_guide() -> str:
     """Return guidance on translating plain-language photo requests into darktable controls."""

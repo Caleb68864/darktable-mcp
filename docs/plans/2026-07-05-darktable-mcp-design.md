@@ -51,6 +51,11 @@ darkroom re-renders → JSON reply → Claude.
 | `build_starter_styles(image_query)` | build the "MCP - ..." starter style pack from the live pipeline |
 | `get_preview(max_size)` | render the current edit to a JPEG Claude can **see** (feedback loop) |
 | `reset_current` | discard edits and start over |
+| `set_rating` / `get_labels` / `set_color_label` | ratings + color labels (single or `all_selected`) |
+| `add_tag` / `remove_tag` / `get_tags` | keyword tags |
+| `set_metadata` / `get_metadata` | title/creator/... + read-only EXIF |
+| `list_collection` / `get_selection` | browse the active filter / selected photos |
+| `duplicate_image` / `import_images` / `export_image` | library + real file export |
 | `darktable_guide` | intent→control knowledge Claude reads to translate words to modules |
 
 ### Controls (all validated live)

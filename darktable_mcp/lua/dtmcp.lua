@@ -186,4 +186,148 @@ function dtmcp.export_preview(path, max_size)
   return encode({ path = path, image = img.filename })
 end
 
+-- Export the current edit to a real file at `path`, format inferred from `ext` (jpeg/png/tiff).
+function dtmcp.export_image(path, ext, max_size)
+  local img = current_image()
+  if not img then return encode({ error = "no image open in the darkroom" }) end
+  ext = (ext or "jpeg"):lower()
+  local fmt = dt.new_format(ext)
+  if ext == "jpeg" or ext == "jpg" then fmt.quality = 95 end
+  if max_size and tonumber(max_size) then
+    fmt.max_width = tonumber(max_size)
+    fmt.max_height = tonumber(max_size)
+  end
+  fmt:write_image(img, path)
+  return encode({ exported = path, image = img.filename })
+end
+
+-- ---- organizing: ratings, labels, tags, metadata --------------------------
+
+-- Images to act on: the lighttable selection if `all_selected` and non-empty, else current image.
+local function targets(all_selected)
+  if all_selected then
+    local s = dt.gui.selection()
+    if s and #s > 0 then return s end
+  end
+  local img = current_image()
+  return img and { img } or {}
+end
+
+local COLOR_LABELS = { red = true, yellow = true, green = true, blue = true, purple = true }
+
+function dtmcp.set_rating(rating, all_selected)
+  rating = tonumber(rating)
+  if not rating or rating < -1 or rating > 5 then
+    return encode({ error = "rating must be -1 (reject) to 5" })
+  end
+  local imgs = targets(all_selected)
+  for _, img in ipairs(imgs) do img.rating = rating end
+  return encode({ rating = rating, count = #imgs })
+end
+
+function dtmcp.set_color_label(color, on, all_selected)
+  color = color and color:lower() or ""
+  if not COLOR_LABELS[color] then
+    return encode({ error = "color must be red/yellow/green/blue/purple" })
+  end
+  local imgs = targets(all_selected)
+  for _, img in ipairs(imgs) do img[color] = (on and true or false) end
+  return encode({ color = color, on = (on and true or false), count = #imgs })
+end
+
+function dtmcp.get_labels()
+  local img = current_image()
+  if not img then return encode({ error = "no image open in the darkroom" }) end
+  local labels = {}
+  for c in pairs(COLOR_LABELS) do if img[c] then labels[#labels + 1] = c end end
+  return encode({ rating = img.rating, labels = labels })
+end
+
+function dtmcp.add_tag(tag, all_selected)
+  if not tag or tag == "" then return encode({ error = "tag name required" }) end
+  local t = dt.tags.create(tag)
+  local imgs = targets(all_selected)
+  for _, img in ipairs(imgs) do img:attach_tag(t) end
+  return encode({ tag = tag, attached = #imgs })
+end
+
+function dtmcp.remove_tag(tag, all_selected)
+  local t = dt.tags.find(tag)
+  if not t then return encode({ error = "tag not found: " .. tostring(tag) }) end
+  local imgs = targets(all_selected)
+  for _, img in ipairs(imgs) do img:detach_tag(t) end
+  return encode({ tag = tag, detached = #imgs })
+end
+
+function dtmcp.get_tags()
+  local img = current_image()
+  if not img then return encode({ error = "no image open in the darkroom" }) end
+  local out = {}
+  for _, t in ipairs(img:get_tags()) do out[#out + 1] = t.name end
+  return encode({ tags = out })
+end
+
+local META_FIELDS = { title = true, creator = true, publisher = true, rights = true, description = true }
+
+function dtmcp.set_metadata(field, value)
+  field = field and field:lower() or ""
+  if not META_FIELDS[field] then
+    return encode({ error = "field must be title/creator/publisher/rights/description" })
+  end
+  local img = current_image()
+  if not img then return encode({ error = "no image open in the darkroom" }) end
+  img[field] = value or ""
+  return encode({ field = field, value = img[field], image = img.filename })
+end
+
+function dtmcp.get_metadata()
+  local img = current_image()
+  if not img then return encode({ error = "no image open in the darkroom" }) end
+  return encode({
+    filename = img.filename,
+    title = img.title, creator = img.creator, publisher = img.publisher,
+    rights = img.rights, description = img.description,
+    exif = {
+      maker = img.exif_maker, model = img.exif_model, lens = img.exif_lens,
+      iso = img.exif_iso, aperture = img.exif_aperture, exposure = img.exif_exposure,
+      focal_length = img.exif_focal_length, datetime = img.exif_datetime_taken,
+    },
+  })
+end
+
+-- ---- browsing: collection, selection, duplicate, import ------------------
+
+function dtmcp.list_collection(limit)
+  limit = tonumber(limit) or 100
+  local out = {}
+  for i = 1, #dt.collection do
+    local img = dt.collection[i]
+    out[#out + 1] = { filename = img.filename, rating = img.rating }
+    if #out >= limit then break end
+  end
+  return encode({ count = #out, images = out })
+end
+
+function dtmcp.get_selection()
+  local s = dt.gui.selection()
+  local out = {}
+  for i = 1, #s do out[#out + 1] = s[i].filename end
+  return encode({ count = #out, selection = out })
+end
+
+function dtmcp.duplicate_image()
+  local img = current_image()
+  if not img then return encode({ error = "no image open in the darkroom" }) end
+  local dup = img:duplicate()
+  return encode({ duplicated = img.filename, new_id = dup.id })
+end
+
+function dtmcp.import_images(path)
+  if not path or path == "" then return encode({ error = "path required" }) end
+  local imported = dt.database.import(path)
+  local n = 0
+  if type(imported) == "table" then n = #imported elseif imported then n = 1 end
+  return encode({ imported = n, path = path })
+end
+
 return "dtmcp loaded"
