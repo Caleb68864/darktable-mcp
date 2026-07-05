@@ -69,6 +69,14 @@ STARTER_STYLES: dict[str, list[tuple[str, str, int]]] = {
     "Cinematic": LOOKS["cinematic"],
 }
 
+# Additional community/agent-designed style recipes are merged in from extra_styles if present.
+try:
+    from .extra_styles import EXTRA_STYLES
+
+    STARTER_STYLES = {**STARTER_STYLES, **EXTRA_STYLES}
+except ImportError:  # optional module
+    pass
+
 INTENT_GUIDE = """\
 # darktable live-edit guide (for Claude)
 
@@ -113,6 +121,12 @@ pass `all_selected=true` to act on the whole lighttable selection (see `get_sele
 - `list_collection` — the photos in the active lighttable filter. `duplicate_image` — a virtual
   copy with independent edits. `import_images(path)` — add files/folders. `export_image(path,
   format, max_size)` — write the edited photo to a real JPEG/PNG/TIFF.
+- `set_location(lat, lon, elevation)` — geotag the photo.
+- Styles: `apply_style(name, all_selected=true)` batches a look across the selection.
+  `import_style(path)` loads a downloaded .dtstyle (including LUT-based looks); `export_style`
+  saves one; `delete_style` removes one.
+- `copy_edit(from_query, all_selected)` — copy the entire edit from one photo onto the current
+  photo or the whole selection. Great for applying one good edit to a burst of similar shots.
 
 ## Workflow tips
 - Call `open_in_darkroom` first so the user sees the photo. Confirm with `get_current_image`.

@@ -70,6 +70,16 @@ local function current_image()
   return sel and sel[1] or nil
 end
 
+-- Images to act on: the lighttable selection if `all_selected` and non-empty, else current image.
+local function targets(all_selected)
+  if all_selected then
+    local s = dt.gui.selection()
+    if s and #s > 0 then return s end
+  end
+  local img = current_image()
+  return img and { img } or {}
+end
+
 local function image_info(img)
   if not img then return nil end
   return {
@@ -147,16 +157,64 @@ function dtmcp.list_styles()
   return encode({ count = #out, styles = out })
 end
 
-function dtmcp.apply_style(name)
-  local img = current_image()
-  if not img then return encode({ error = "no image open in the darkroom" }) end
+function dtmcp.apply_style(name, all_selected)
+  local style
+  for i = 1, #dt.styles do
+    if dt.styles[i].name == name then style = dt.styles[i] end
+  end
+  if not style then return encode({ error = "style not found: " .. tostring(name) }) end
+  local imgs = targets(all_selected)
+  if #imgs == 0 then return encode({ error = "no image open in the darkroom" }) end
+  for _, img in ipairs(imgs) do dt.styles.apply(style, img) end
+  return encode({ applied = name, count = #imgs })
+end
+
+function dtmcp.import_style(path)
+  if not path or path == "" then return encode({ error = "path required" }) end
+  local before = #dt.styles
+  dt.styles.import(path)
+  return encode({ imported = path, styles_added = #dt.styles - before, total = #dt.styles })
+end
+
+function dtmcp.export_style(name, directory)
   for i = 1, #dt.styles do
     if dt.styles[i].name == name then
-      dt.styles.apply(dt.styles[i], img)
-      return encode({ applied = name, image = img.filename })
+      dt.styles.export(dt.styles[i], directory)
+      return encode({ exported = name, directory = directory })
     end
   end
   return encode({ error = "style not found: " .. tostring(name) })
+end
+
+function dtmcp.delete_style(name)
+  for i = 1, #dt.styles do
+    if dt.styles[i].name == name then
+      dt.styles.delete(dt.styles[i])
+      return encode({ deleted = name })
+    end
+  end
+  return encode({ error = "style not found: " .. tostring(name) })
+end
+
+-- Copy the full edit from one photo onto the current image (or the whole selection), via a
+-- temporary style. `from_query` is a filename substring of the source photo.
+function dtmcp.copy_edit(from_query, all_selected)
+  from_query = from_query and from_query:lower() or ""
+  local source
+  for i = 1, #dt.database do
+    if dt.database[i].filename:lower():find(from_query, 1, true) then source = dt.database[i]; break end
+  end
+  if not source then return encode({ error = "no source image matching '" .. from_query .. "'" }) end
+  local imgs = targets(all_selected)
+  if #imgs == 0 then return encode({ error = "no target image" }) end
+  local tmp = "__dtmcp_copyedit__"
+  for i = #dt.styles, 1, -1 do if dt.styles[i].name == tmp then dt.styles.delete(dt.styles[i]) end end
+  dt.styles.create(source, tmp, "")
+  local style
+  for i = 1, #dt.styles do if dt.styles[i].name == tmp then style = dt.styles[i] end end
+  for _, img in ipairs(imgs) do dt.styles.apply(style, img) end
+  dt.styles.delete(style)
+  return encode({ copied_from = source.filename, count = #imgs })
 end
 
 function dtmcp.create_style_from_current(name, description)
@@ -182,7 +240,9 @@ function dtmcp.export_preview(path, max_size)
   fmt.quality = 88
   fmt.max_width = max_size
   fmt.max_height = max_size
-  fmt:write_image(img, path)
+  -- high_quality=true forces a complete render through the export pipeline (deterministic),
+  -- instead of grabbing the darkroom's still-rendering preview cache.
+  fmt:write_image(img, path, true)
   return encode({ path = path, image = img.filename })
 end
 
@@ -197,21 +257,11 @@ function dtmcp.export_image(path, ext, max_size)
     fmt.max_width = tonumber(max_size)
     fmt.max_height = tonumber(max_size)
   end
-  fmt:write_image(img, path)
+  fmt:write_image(img, path, true)
   return encode({ exported = path, image = img.filename })
 end
 
 -- ---- organizing: ratings, labels, tags, metadata --------------------------
-
--- Images to act on: the lighttable selection if `all_selected` and non-empty, else current image.
-local function targets(all_selected)
-  if all_selected then
-    local s = dt.gui.selection()
-    if s and #s > 0 then return s end
-  end
-  local img = current_image()
-  return img and { img } or {}
-end
 
 local COLOR_LABELS = { red = true, yellow = true, green = true, blue = true, purple = true }
 
@@ -292,7 +342,17 @@ function dtmcp.get_metadata()
       iso = img.exif_iso, aperture = img.exif_aperture, exposure = img.exif_exposure,
       focal_length = img.exif_focal_length, datetime = img.exif_datetime_taken,
     },
+    gps = { latitude = img.latitude, longitude = img.longitude, elevation = img.elevation },
   })
+end
+
+function dtmcp.set_location(latitude, longitude, elevation)
+  local img = current_image()
+  if not img then return encode({ error = "no image open in the darkroom" }) end
+  if latitude ~= nil then img.latitude = tonumber(latitude) end
+  if longitude ~= nil then img.longitude = tonumber(longitude) end
+  if elevation ~= nil then img.elevation = tonumber(elevation) end
+  return encode({ latitude = img.latitude, longitude = img.longitude, elevation = img.elevation })
 end
 
 -- ---- browsing: collection, selection, duplicate, import ------------------

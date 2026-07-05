@@ -137,9 +137,36 @@ def list_styles() -> dict[str, Any]:
 
 
 @mcp.tool()
-def apply_style(name: str) -> dict[str, Any]:
-    """Apply a saved style to the current darkroom photo, live."""
-    return _guard(lambda: bridge.call("apply_style", name))
+def apply_style(name: str, all_selected: bool = False) -> dict[str, Any]:
+    """Apply a saved style to the current darkroom photo (or the whole lighttable selection)."""
+    return _guard(lambda: bridge.call("apply_style", name, all_selected))
+
+
+@mcp.tool()
+def import_style(path: str) -> dict[str, Any]:
+    """Import a .dtstyle file (e.g. a downloaded style or LUT-based look pack) into darktable."""
+    return _guard(lambda: bridge.call("import_style", path))
+
+
+@mcp.tool()
+def export_style(name: str, directory: str) -> dict[str, Any]:
+    """Export a saved style to a .dtstyle file in `directory` (to share or back up)."""
+    return _guard(lambda: bridge.call("export_style", name, directory))
+
+
+@mcp.tool()
+def delete_style(name: str) -> dict[str, Any]:
+    """Delete a saved style by name."""
+    return _guard(lambda: bridge.call("delete_style", name))
+
+
+@mcp.tool()
+def copy_edit(from_query: str, all_selected: bool = False) -> dict[str, Any]:
+    """Copy the full edit from one photo onto the current photo (or the whole selection).
+
+    from_query: a filename substring of the photo whose edit you want to copy.
+    """
+    return _guard(lambda: bridge.call("copy_edit", from_query, all_selected))
 
 
 @mcp.tool()
@@ -234,8 +261,14 @@ def set_metadata(field: str, value: str) -> dict[str, Any]:
 
 @mcp.tool()
 def get_metadata() -> dict[str, Any]:
-    """Get the current photo's metadata (title/creator/...) and key EXIF (camera, lens, ISO, ...)."""
+    """Get the current photo's metadata (title/creator/...), key EXIF, and GPS location."""
     return _guard(lambda: bridge.call("get_metadata"))
+
+
+@mcp.tool()
+def set_location(latitude: float, longitude: float, elevation: float | None = None) -> dict[str, Any]:
+    """Geotag the current photo with GPS latitude/longitude (and optional elevation in metres)."""
+    return _guard(lambda: bridge.call("set_location", latitude, longitude, elevation))
 
 
 # -- browsing & library ----------------------------------------------------
