@@ -173,4 +173,17 @@ function dtmcp.reset_current()
   return encode({ reset = img.filename })
 end
 
+-- Export the current edit to a JPEG at `path` (forward-slash path). `max_size` caps the long edge.
+function dtmcp.export_preview(path, max_size)
+  local img = current_image()
+  if not img then return encode({ error = "no image open in the darkroom" }) end
+  max_size = tonumber(max_size) or 1024
+  local fmt = dt.new_format("jpeg")
+  fmt.quality = 88
+  fmt.max_width = max_size
+  fmt.max_height = max_size
+  fmt:write_image(img, path)
+  return encode({ path = path, image = img.filename })
+end
+
 return "dtmcp loaded"

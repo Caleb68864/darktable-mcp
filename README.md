@@ -43,7 +43,10 @@ Or configure Claude Desktop / Claude Code with the `darktable-mcp` command as an
 | `list_images` | Find photos in the library |
 | `open_in_darkroom` | Load a photo into the darkroom so edits are visible |
 | `get_current_image` | Which photo is being edited |
-| `adjust` | Live nudge: brightness, warmth, tint, contrast, saturation, vibrance (up/down) |
+| `adjust` | Live nudge: brightness, warmth, tint, contrast, saturation, vibrance, shadows, highlights (up/down) |
+| `apply_look` / `list_looks` | One-word vibe: warmer, moody, cinematic, golden, vivid, faded, ... |
+| `get_preview` | Render the current edit to an image so Claude can **see** the result |
+| `build_starter_styles` | Create the "MCP - ..." starter style pack from the live pipeline |
 | `list_styles` / `apply_style` | Apply a saved look, live |
 | `create_style_from_current` | Save the current look as a reusable style |
 | `reset_current` | Discard edits and start over |

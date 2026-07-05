@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
+from pathlib import Path
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Image
 
 from . import controls
 from .bridge import Bridge, DarktableError, DarktableNotRunning
@@ -143,6 +146,28 @@ def apply_style(name: str) -> dict[str, Any]:
 def create_style_from_current(name: str, description: str = "") -> dict[str, Any]:
     """Save the current photo's edit as a reusable named style."""
     return _guard(lambda: bridge.call("create_style_from_current", name, description))
+
+
+@mcp.tool()
+def get_preview(max_size: int = 1024) -> Image:
+    """Render the current darkroom edit to an image so you can SEE the result.
+
+    Returns a JPEG of the photo with all current edits applied (long edge capped at `max_size`).
+    Call this after making changes to check how the photo looks, then decide what to adjust next.
+    """
+    fd, tmp = tempfile.mkstemp(suffix=".jpg", prefix="dtmcp_preview_")
+    os.close(fd)
+    try:
+        result = bridge.call("export_preview", Path(tmp).as_posix(), max_size)
+        if isinstance(result, dict) and result.get("error"):
+            raise DarktableError(result["error"])
+        data = Path(tmp).read_bytes()
+        return Image(data=data, format="jpeg")
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 
 @mcp.tool()

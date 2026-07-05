@@ -92,9 +92,14 @@ react, nudge again.
 `amount` is a relative step, 1 (tiny) to 10 (large). Default 3 for a first move; smaller for
 fine-tuning.
 
+## Seeing the result
+- `get_preview` renders the current edit to an image you can actually look at. Use it to close the
+  loop: make a change, call `get_preview`, judge it, then decide the next nudge — rather than
+  editing blind. Especially call it before telling the user something looks a certain way.
+
 ## Workflow tips
 - Call `open_in_darkroom` first so the user sees the photo. Confirm with `get_current_image`.
-- Start with `apply_look` for the overall vibe, then `adjust` single controls to taste.
+- Start with `apply_look` for the overall vibe, call `get_preview` to check, then `adjust` to taste.
 - Prefer a saved style as a fast starting point: `list_styles` then `apply_style` (styles named
   "MCP - ..." are the starter pack). Fine-tune with nudges afterward.
 - If the user likes the result, offer `create_style_from_current` to save it.
