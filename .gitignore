@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# darktable
+*.dtstyle.bak
+
+# Claude Code local state
+.claude/
+
+# Editor / OS
+*.stackdump
+.DS_Store
+Thumbs.db
+
+# Obsidian vault lives here but is not part of the package
+/vault/.obsidian/workspace*.json
