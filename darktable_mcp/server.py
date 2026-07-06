@@ -10,20 +10,50 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP, Image
 
 from . import controls
-from .bridge import Bridge, DarktableError, DarktableNotRunning
+from .bridge import (
+    Bridge,
+    DarktableError,
+    DarktableLuaError,
+    DarktableNotRunning,
+    DarktableTimeout,
+)
 
 mcp = FastMCP("darktable")
 bridge = Bridge()
 
+_ERROR_CODES = {
+    DarktableTimeout: "timeout",
+    DarktableNotRunning: "darktable_not_running",
+    DarktableLuaError: "lua_error",
+    DarktableError: "darktable_error",
+}
+
+
+def _error_payload(exc: Exception) -> dict[str, Any]:
+    for cls, code in _ERROR_CODES.items():
+        if isinstance(exc, cls):
+            return {
+                "ok": False,
+                "error": code,
+                "message": str(exc),
+                "hint": getattr(exc, "hint", ""),
+            }
+    return {"ok": False, "error": "internal_error", "message": f"{type(exc).__name__}: {exc}"}
+
 
 def _guard(call) -> dict[str, Any]:
-    """Run a bridge call, turning darktable errors into structured tool results."""
+    """Run a bridge call and always return a structured result — never raise out of a tool."""
     try:
-        return {"ok": True, "result": call()}
-    except DarktableNotRunning as exc:
-        return {"ok": False, "error": "darktable_not_running", "message": str(exc)}
-    except DarktableError as exc:
-        return {"ok": False, "error": "darktable_error", "message": str(exc)}
+        result = call()
+    except Exception as exc:  # noqa: BLE001 - tools must never raise; report instead
+        return _error_payload(exc)
+    # A Lua-level failure comes back as {"error": ...}; surface it as a diagnosable not-ok result.
+    if isinstance(result, dict) and "error" in result and "ok" not in result:
+        payload = {"ok": False, "error": "darktable_error", "message": result["error"]}
+        if "where" in result:
+            payload["where"] = result["where"]
+        return payload
+    return {"ok": True, "result": result}
 
 
 @mcp.tool()
@@ -181,15 +211,23 @@ def get_preview(max_size: int = 1024) -> Image:
 
     Returns a JPEG of the photo with all current edits applied (long edge capped at `max_size`).
     Call this after making changes to check how the photo looks, then decide what to adjust next.
+    Raises with a clear message if darktable is not running or no photo is open.
     """
+    max_size = max(64, min(int(max_size or 1024), 4096))  # keep previews sane and fast
     fd, tmp = tempfile.mkstemp(suffix=".jpg", prefix="dtmcp_preview_")
     os.close(fd)
     try:
-        result = bridge.call("export_preview", Path(tmp).as_posix(), max_size)
+        result = bridge.call("export_preview", Path(tmp).as_posix(), max_size, timeout=90)
         if isinstance(result, dict) and result.get("error"):
-            raise DarktableError(result["error"])
+            raise RuntimeError(f"could not render preview: {result['error']}")
         data = Path(tmp).read_bytes()
+        if not data:
+            raise RuntimeError("preview render produced no image data")
         return Image(data=data, format="jpeg")
+    except DarktableError as exc:
+        # get_preview must return an Image; turn bridge errors into a clear raised message.
+        hint = getattr(exc, "hint", "")
+        raise RuntimeError(f"{exc}{(' — ' + hint) if hint else ''}") from exc
     finally:
         try:
             os.remove(tmp)
@@ -302,11 +340,27 @@ def export_image(path: str, format: str = "jpeg", max_size: int = 0) -> dict[str
     """Export the current photo (with its edits) to a real file.
 
     format: jpeg/png/tiff. max_size: cap the long edge in pixels (0 = full resolution).
+    Note: full-resolution exports of large raws are slow and memory-heavy; a capped size
+    (e.g. 2560) is faster and safer. The parent folder of `path` must already exist.
     """
     if format.lower() not in controls.EXPORT_FORMATS:
-        return {"ok": False, "error": "bad_format", "message": f"format must be one of {sorted(controls.EXPORT_FORMATS)}"}
+        return {"ok": False, "error": "bad_format",
+                "message": f"format must be one of {sorted(controls.EXPORT_FORMATS)}"}
+    parent = os.path.dirname(path)
+    if parent and not os.path.isdir(parent):
+        return {"ok": False, "error": "bad_path",
+                "message": f"output folder does not exist: {parent}",
+                "hint": "Create the folder first, or choose an existing one."}
     size = max_size if max_size > 0 else None
-    return _guard(lambda: bridge.call("export_image", path, format.lower(), size))
+    # Full-res high-quality renders can take minutes; give them room rather than aborting mid-render.
+    return _guard(lambda: bridge.call("export_image", path, format.lower(), size, timeout=300))
+
+
+@mcp.tool()
+def diagnose() -> dict[str, Any]:
+    """Troubleshoot the darktable connection: gdbus path, whether darktable is running, version,
+    config directory, and any stale lock files. Call this first when other tools fail."""
+    return {"ok": True, "result": bridge.diagnose()}
 
 
 @mcp.tool()

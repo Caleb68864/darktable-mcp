@@ -73,8 +73,8 @@ def test_call_decodes_json(monkeypatch):
 
     def fake_run(cmd, *a, **k):
         calls.append(cmd[-1])  # the lua string
-        if "type(dtmcp)" in cmd[-1]:
-            return _fake_completed(stdout="('table',)\n")
+        if "rawget" in cmd[-1]:  # the helper version-check probe
+            return _fake_completed(stdout="('table/function',)\n")
         return _fake_completed(stdout="""('{"version": "5.6.0", "images": 3}',)\n""")
 
     monkeypatch.setattr(subprocess, "run", fake_run)

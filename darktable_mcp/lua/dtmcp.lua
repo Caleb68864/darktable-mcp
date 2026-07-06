@@ -44,6 +44,35 @@ end
 
 dtmcp._encode = encode
 
+-- Wait until the darkroom is active and its pixelpipe is ready (a slider reads a real number,
+-- not nan). Breaks as soon as ready, so it adds negligible latency when already warm. This is the
+-- guard against the async races: view switching and post-reset re-rendering both take a moment.
+function dtmcp._wait_ready()
+  local darkroom = dt.gui.views.darkroom
+  for _ = 1, 80 do
+    local ok = (dt.gui.current_view() == darkroom)
+    local val = dt.gui.action("iop/exposure/exposure", 0, "value", "", 0)
+    if ok and val == val then break end  -- val==val is false only for nan
+    dt.control.sleep(50)
+  end
+  dt.control.sleep(80)
+end
+
+-- Safe dispatcher: the Python bridge calls dtmcp._call("name", ...). Any Lua error inside a
+-- helper is caught and returned as a structured {"error": ...} JSON string, so the client always
+-- gets something diagnosable instead of a raw DBus LuaError.
+function dtmcp._call(name, ...)
+  local fn = dtmcp[name]
+  if type(fn) ~= "function" then
+    return encode({ error = "unknown function: " .. tostring(name) })
+  end
+  local ok, res = pcall(fn, ...)
+  if not ok then
+    return encode({ error = tostring(res), where = tostring(name) })
+  end
+  return res
+end
+
 -- ---- control registry (validated live) ----------------------------------
 
 local CONTROLS = {
@@ -121,16 +150,14 @@ function dtmcp.open_in_darkroom(query)
   for i = 1, #dt.database do
     local img = dt.database[i]
     if img.filename:lower():find(query, 1, true) then
-      dt.gui.views.darkroom.display_image(img)
-      dtmcp._current = img
-      -- The view switch + image load is asynchronous; wait until darkroom is actually active
-      -- (and the pixelpipe has the image) before returning, so a following adjust lands.
       local darkroom = dt.gui.views.darkroom
-      for _ = 1, 40 do
-        if dt.gui.current_view() == darkroom then break end
-        dt.control.sleep(50)
-      end
-      dt.control.sleep(200)
+      darkroom.display_image(img)
+      dt.gui.current_view(darkroom)  -- explicit setter: reliably switches view (display_image alone isn't)
+      dtmcp._current = img
+      -- The view switch + image load is asynchronous; wait until darkroom is active AND the
+      -- pixelpipe is ready (a module slider reads a real number, not nan) before returning, so
+      -- the first following adjust actually lands on this image.
+      dtmcp._wait_ready()
       return encode({ opened = image_info(img), view = dt.gui.current_view().id })
     end
   end
@@ -148,6 +175,7 @@ function dtmcp.adjust(control, direction, amount)
   if not path then return encode({ error = "unknown control: " .. tostring(control) }) end
   local effect = (direction == "down") and "down" or "up"
   amount = tonumber(amount) or 3
+  dtmcp._wait_ready()                               -- don't race a pending render
   local module = path:gsub("/[^/]*$", "")
   dt.gui.action(module, 0, "on", 1)                 -- ensure module enabled
   dt.gui.action(path, 0, "value", effect, amount)   -- the live nudge
@@ -235,6 +263,7 @@ function dtmcp.reset_current()
   local img = current_image()
   if not img then return encode({ error = "no image open in the darkroom" }) end
   img:reset()
+  dtmcp._wait_ready()  -- let the reset re-render settle before the next edit
   return encode({ reset = img.filename })
 end
 
