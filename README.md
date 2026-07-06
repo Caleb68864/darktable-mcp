@@ -21,6 +21,21 @@ Validated against **darktable 5.6.0** (Lua API 9.7.0) on Windows.
 
 ---
 
+## See it in action
+
+Claude edited this barn-under-the-northern-lights shot **live** — a single instruction to reveal
+the near-black foreground while keeping the aurora vivid. It lifted the shadows to bring out the
+barn and field, protected the intense red highlights, and added contrast and vibrance for pop,
+checking its own `get_preview` along the way.
+
+| Before | After |
+|:------:|:-----:|
+| ![Barn under the aurora, before editing — the barn and foreground are crushed to near-black silhouette](docs/images/barn-aurora-before.jpg) | ![The same photo after Claude's live edit — the barn and field are revealed with detail while the red-and-green aurora stays vivid](docs/images/barn-aurora-after.jpg) |
+
+*Straight-out-of-camera raw (left) vs. Claude's live darktable edit (right).*
+
+---
+
 ## Highlights
 
 - **Live, conversational editing.** Claude nudges exposure, white balance, contrast, saturation,
