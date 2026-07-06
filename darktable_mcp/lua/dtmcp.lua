@@ -121,10 +121,17 @@ function dtmcp.open_in_darkroom(query)
   for i = 1, #dt.database do
     local img = dt.database[i]
     if img.filename:lower():find(query, 1, true) then
-      dt.gui.action("views/darkroom", 0, "", 1)
       dt.gui.views.darkroom.display_image(img)
       dtmcp._current = img
-      return encode({ opened = image_info(img) })
+      -- The view switch + image load is asynchronous; wait until darkroom is actually active
+      -- (and the pixelpipe has the image) before returning, so a following adjust lands.
+      local darkroom = dt.gui.views.darkroom
+      for _ = 1, 40 do
+        if dt.gui.current_view() == darkroom then break end
+        dt.control.sleep(50)
+      end
+      dt.control.sleep(200)
+      return encode({ opened = image_info(img), view = dt.gui.current_view().id })
     end
   end
   return encode({ error = "no image matching '" .. query .. "'" })
